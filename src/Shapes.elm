@@ -5,6 +5,7 @@ import Random
 import Array
 import Svg
 import Svg.Attributes as SvgA
+import String
 
 
 type Shape
@@ -59,6 +60,87 @@ shapeToSvg shape =
 
         Unknown ->
             renderSvgText "Unknown shape"
+
+
+genRGB : Random.Generator ( Int, Int, Int )
+genRGB =
+    Random.map3 (,,) (Random.int 0 255) (Random.int 0 255) (Random.int 0 255)
+
+
+genCoord : Float -> Float -> Random.Generator Float
+genCoord minFLoat maxFloat =
+    Random.float minFLoat maxFloat
+
+
+genCoordPair : Random.Generator ( Float, Float )
+genCoordPair =
+    Random.pair (genCoord 0 500) (genCoord 0 500)
+
+
+genTriangle : Random.Generator ( ( Float, Float ), ( Int, Int, Int ) )
+genTriangle =
+    Random.map2 (,) (genCoordPair) (genRGB)
+
+
+triangleBase : Float -> Float -> Int -> Int -> Int -> Html msg
+triangleBase xVect yVect rCol gCol bCol =
+    let
+        xInit =
+            50
+
+        yInit =
+            80
+
+        rgb =
+            [ rCol, gCol, bCol ] |> List.map toString |> String.join ", "
+
+        fillColor =
+            String.concat [ "rgb(", rgb, ")" ]
+
+        -- coordinates are generated using rand and xInit / yInit
+        ax =
+            13 + xVect
+
+        --163
+        ay =
+            57 + yVect
+
+        a =
+            [ ax, ay ] |> List.map toString |> String.join (",")
+
+        -- 287
+        bx =
+            7 + xVect
+
+        -- 157
+        by =
+            17 + yVect
+
+        b =
+            [ bx, by ] |> List.map toString |> String.join (",")
+
+        -- 247
+        cx =
+            37 + xVect
+
+        -- 187
+        cy =
+            10 + yVect
+
+        c =
+            [ cx, cy ] |> List.map toString |> String.join (",")
+
+        -- 240
+        points =
+            [ a, b, c ] |> String.join " "
+
+        -- "163,287 157,247 187,240"
+    in
+        Svg.polygon
+            [ SvgA.fill fillColor
+            , SvgA.points points
+            ]
+            []
 
 
 renderSvgText : String -> Html msg

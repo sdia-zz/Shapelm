@@ -26,17 +26,25 @@ main =
 
 type alias Model =
     { shapes : List Shapes.Shape
+    , x : Float
+    , y : Float
+    , r : Int
+    , g : Int
+    , b : Int
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( { shapes = [] }, Cmd.none )
+    -- ( { shapes = [] }, Cmd.none )
+    ( { shapes = [], x = 0, y = 0, r = 0, g = 0, b = 0 }, Cmd.none )
 
 
 type Msg
     = GetShape
     | NewShape Shapes.Shape
+    | GetTriangle
+    | NewTriangle ( ( Float, Float ), ( Int, Int, Int ) )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -52,6 +60,12 @@ update msg model =
             in
                 ( { model | shapes = newShapes }, Cmd.none )
 
+        GetTriangle ->
+            ( model, Random.generate NewTriangle Shapes.genTriangle )
+
+        NewTriangle ( ( x, y ), ( r, g, b ) ) ->
+            ( { model | x = x, y = y, r = r, g = g, b = b }, Cmd.none )
+
 
 view : Model -> Html Msg
 view model =
@@ -61,7 +75,9 @@ view model =
             [ renderModel model ]
         , Html.button
             [ HtmlA.class "btn btn-primary m1"
-            , onClick GetShape
+
+            -- , onClick GetShape
+            , onClick GetTriangle
             ]
             [ text "add shape" ]
         ]
@@ -78,4 +94,6 @@ renderModel model =
             , SvgA.height "485"
             , SvgA.viewBox "0 0 500 500"
             ]
-            shapesSVG
+            -- shapesSVG
+            -- [ Shapes.triangleBase ]
+            [ Shapes.triangleBase model.x model.y model.r model.g model.b ]
