@@ -4,6 +4,7 @@ import Random
 import Array
 import Maybe
 import Color
+import Dict
 import Html exposing (Html, div, text, button, program)
 import Html.Events exposing (onClick)
 import Html.Attributes as HtmlA
@@ -28,7 +29,7 @@ main =
 
 
 type alias Model =
-    { shapes : List Geometry.Triangle
+    { shapes : List Geometry.Polygon
     }
 
 
@@ -38,7 +39,7 @@ init =
 
 
 type Msg
-    = GetTriangle
+    = GetPolygon
     | NewData (List Float)
 
 
@@ -52,9 +53,13 @@ fetchData arrayData default index =
     Maybe.withDefault default (Array.get index arrayData)
 
 
+maxPolygonSize =
+    6
+
+
 scaleFrame =
-    { width = 42
-    , height = 55
+    { width = 160
+    , height = 200
     }
 
 
@@ -67,7 +72,7 @@ mainFrame =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        GetTriangle ->
+        GetPolygon ->
             ( model, Random.generate NewData randomFloat32 )
 
         NewData data ->
@@ -75,42 +80,44 @@ update msg model =
                 arrayData =
                     Array.fromList data
 
-                a =
-                    Geometry.Point
-                        (0 |> fetchData arrayData 0.0)
-                        (1 |> fetchData arrayData 0.0)
+                polygonSize =
+                    (0 |> fetchData arrayData 0.0)
+                        |> (*) 10
+                        |> round
+                        |> (+) 1
+                        |> clamp 3 maxPolygonSize
 
-                b =
-                    Geometry.Point
-                        (2 |> fetchData arrayData 0.0)
-                        (3 |> fetchData arrayData 0.0)
-
-                c =
-                    Geometry.Point
-                        (4 |> fetchData arrayData 0.0)
-                        (5 |> fetchData arrayData 0.0)
+                -- |> (+) 1
+                polygonPoints =
+                    List.map2 Geometry.Point
+                        (Array.slice 1 (polygonSize + 1) arrayData |> Array.toList)
+                        (Array.slice (polygonSize + 1) (2 * polygonSize + 1) arrayData |> Array.toList)
 
                 col =
-                    Color.rgb
-                        ((6 |> fetchData arrayData 0.0) |> (*) 255 |> round)
-                        ((7 |> fetchData arrayData 0.0) |> (*) 255 |> round)
-                        ((8 |> fetchData arrayData 0.0) |> (*) 255 |> round)
+                    Color.rgba
+                        ((2 * polygonSize + 2 |> fetchData arrayData 0.0) |> (*) 255 |> round)
+                        ((2 * polygonSize + 3 |> fetchData arrayData 0.0) |> (*) 255 |> round)
+                        ((2 * polygonSize + 4 |> fetchData arrayData 0.0) |> (*) 255 |> round)
+                        ((2 * polygonSize + 5 |> fetchData arrayData 0.0))
 
                 framePositionFinalVector =
                     Geometry.Vector
-                        ((9 |> fetchData arrayData 0.0) |> (*) mainFrame.width)
-                        ((10 |> fetchData arrayData 0.0) |> (*) mainFrame.height)
+                        ((2 * polygonSize + 6 |> fetchData arrayData 0.0) |> (*) mainFrame.width)
+                        ((2 * polygonSize + 7 |> fetchData arrayData 0.0) |> (*) mainFrame.height)
 
-                triangle =
-                    Geometry.Triangle a b c col
-                        |> Geometry.normalizeTriangle scaleFrame.width scaleFrame.height
-                        |> Geometry.translateTriangle framePositionFinalVector
+                polygon =
+                    Geometry.Polygon polygonPoints col (Geometry.isConvex polygonPoints)
+                        |> Geometry.normalizePolygon scaleFrame.width scaleFrame.height
+                        |> Geometry.movePolygon framePositionFinalVector
             in
-                ( { model
-                    | shapes = List.append model.shapes (List.singleton triangle)
-                  }
-                , Cmd.none
-                )
+                if polygon.isConvex then
+                    ( { model
+                        | shapes = List.append model.shapes (List.singleton polygon)
+                      }
+                    , Cmd.none
+                    )
+                else
+                    ( model, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -125,37 +132,32 @@ view model =
             [ HtmlA.class "btn btn-primary m1"
 
             -- , onClick GetShape
-            , onClick GetTriangle
+            , onClick GetPolygon
             ]
             [ text "add triangle" ]
         ]
 
 
-renderTriangle : Geometry.Triangle -> Html msg
-renderTriangle triangle =
+pointToString : Geometry.Point -> String
+pointToString point =
+    [ point.x, point.y ]
+        |> List.map toString
+        |> String.join ","
+
+
+renderPolygon : Geometry.Polygon -> Html msg
+renderPolygon polygon =
     let
-        a =
-            [ triangle.a.x, triangle.a.y ]
-                |> List.map toString
-                |> String.join ","
-
-        b =
-            [ triangle.b.x, triangle.b.y ]
-                |> List.map toString
-                |> String.join ","
-
-        c =
-            [ triangle.c.x, triangle.c.y ]
-                |> List.map toString
-                |> String.join ","
-
-        points =
-            [ a, b, c ] |> String.join " "
+        renderPoints =
+            polygon.points
+                |> List.map pointToString
+                |> String.join " "
 
         colorDict =
-            Color.toRgb triangle.col
+            polygon.col
+                |> Color.toRgb
 
-        colorString =
+        colorJoin =
             [ toString colorDict.red
             , toString colorDict.green
             , toString colorDict.blue
@@ -163,12 +165,14 @@ renderTriangle triangle =
             ]
                 |> String.join ", "
 
-        colors =
-            "rgba(" ++ colorString ++ ")"
+        renderColor =
+            "rgba("
+                ++ colorJoin
+                ++ ")"
     in
         Svg.polygon
-            [ SvgA.fill colors
-            , SvgA.points points
+            [ SvgA.fill renderColor
+            , SvgA.points renderPoints
             ]
             []
 
@@ -183,7 +187,7 @@ renderModel model =
             toString mainFrame.height
 
         shapesSVG =
-            model.shapes |> List.map renderTriangle
+            model.shapes |> List.map renderPolygon
     in
         Svg.svg
             [ SvgA.width frameWidth
