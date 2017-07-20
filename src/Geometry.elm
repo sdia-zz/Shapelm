@@ -81,10 +81,10 @@ edgeIntercept edge1 edge2 =
     in
         -- no need to check the colinearity condition
         ((pointsOrientation p1 q1 p2)
-            != (pointsOrientation p1 q1 q2)
+            /= (pointsOrientation p1 q1 q2)
         )
             && ((pointsOrientation p2 q2 p1)
-                    != (pointsOrientation p2 q2 q1)
+                    /= (pointsOrientation p2 q2 q1)
                )
 
 

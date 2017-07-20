@@ -11,11 +11,12 @@ import Html.Attributes as HtmlA
 import Svg
 import Svg.Attributes as SvgA
 import Geometry
+import Time exposing (Time, second, millisecond)
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Time.every (500 * millisecond) Tick
 
 
 main : Program Never Model Msg
@@ -41,6 +42,7 @@ init =
 type Msg
     = GetPolygon
     | NewData (List Float)
+    | Tick Time
 
 
 randomFloat32 : Random.Generator (List Float)
@@ -72,6 +74,9 @@ mainFrame =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        Tick newTime ->
+            ( model, Random.generate NewData randomFloat32 )
+
         GetPolygon ->
             ( model, Random.generate NewData randomFloat32 )
 
@@ -110,6 +115,15 @@ update msg model =
                         |> Geometry.normalizePolygon scaleFrame.width scaleFrame.height
                         |> Geometry.movePolygon framePositionFinalVector
             in
+                ( { model
+                    | shapes = List.append model.shapes (List.singleton polygon)
+                  }
+                , Cmd.none
+                )
+
+
+
+{--
                 if polygon.isConvex then
                     ( { model
                         | shapes = List.append model.shapes (List.singleton polygon)
@@ -118,6 +132,7 @@ update msg model =
                     )
                 else
                     ( model, Cmd.none )
+                --}
 
 
 view : Model -> Html Msg
