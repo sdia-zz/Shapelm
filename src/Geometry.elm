@@ -36,6 +36,69 @@ type Orientation
     | Null
 
 
+toEdges : List Point -> List Edge
+toEdges points =
+    let
+        numberNodes =
+            List.length points
+
+        arrayPoints =
+            Array.fromList points
+
+        firstPointArray =
+            arrayPoints
+                |> Array.slice 0 1
+
+        pointsNext =
+            (Array.append arrayPoints firstPointArray)
+                |> Array.slice 1 (numberNodes + 1)
+                |> Array.toList
+    in
+        List.map2 Edge
+            points
+            pointsNext
+
+
+pointInPolygon : Polygon -> Point -> Bool
+pointInPolygon polygon point =
+    -- http://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
+    let
+        infinity =
+            10000
+
+        pointExtended =
+            Edge point (Point infinity point.y)
+
+        isOdd n =
+            (n % 2) == 1
+
+        validateEdge edge =
+            let
+                p1 =
+                    edge.start.x
+
+                q1 =
+                    edge.start.y
+
+                p2 =
+                    edge.end.x
+
+                q2 =
+                    edge.end.y
+            in
+                (not ((p1 < point.x) && (p2 < point.x)))
+                    && ((q1 - point.y) * (q2 - point.y) < 0)
+    in
+        polygon.points
+            -- filter out points on y = point.y
+            |> List.filter (\o -> o.y /= point.y)
+            |> toEdges
+            |> List.filter validateEdge
+            |> List.filter (edgeIntercept pointExtended)
+            |> List.length
+            |> isOdd
+
+
 vectorsOrientation : Vector -> Vector -> Orientation
 vectorsOrientation u v =
     let
@@ -64,7 +127,6 @@ pointsOrientation x y z =
 
 edgeIntercept : Edge -> Edge -> Bool
 edgeIntercept edge1 edge2 =
-    -- http://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
     -- http://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
     let
         p1 =
@@ -264,44 +326,3 @@ normalizePolygon scaleX scaleY polygon =
         polygon
             |> movePolygon translateVector
             |> scalePolygon scaleVector
-
-
-pointInPolygon : Polygon -> Point -> Bool
-pointInPolygon polygon point =
-    let
-        minX =
-            polygon.points
-                |> List.map .x
-                |> List.minimum
-                |> Maybe.withDefault 0.0
-
-        maxX =
-            polygon.points
-                |> List.map .x
-                |> List.maximum
-                |> Maybe.withDefault 0.0
-
-        minY =
-            polygon.points
-                |> List.map .y
-                |> List.minimum
-                |> Maybe.withDefault 0.0
-
-        maxY =
-            polygon.points
-                |> List.map .y
-                |> List.maximum
-                |> Maybe.withDefault 0.0
-
-        outside_span =
-            ((point.x <= minX)
-                || (point.x >= maxX)
-            )
-                && ((point.y <= minY)
-                        || (point.y >= maxY)
-                   )
-    in
-        if outside_span then
-            False
-        else
-            True
