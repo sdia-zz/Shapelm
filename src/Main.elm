@@ -21,7 +21,7 @@ populationSize =
 
 chromosomeSize =
     -- # polygons
-    20
+    10
 
 
 maxPolygonSize =
@@ -42,7 +42,7 @@ mainFrame =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Time.every (1 * millisecond) Tick
+    Time.every (500 * millisecond) Tick
 
 
 main : Program Never Model Msg
@@ -144,8 +144,26 @@ update msg model =
                         (phenotypeInit.chromosome)
                         (Genetics.fitness phenotypeInit)
 
+                ----------------------------------------------------------------
+                randomPoly =
+                    -- breeding ?
+                    dataMat
+                        |> List.take 1
+                        |> List.map data32ToPolygon
+
+                breeded =
+                    model.generation
+                        |> List.map .chromosome
+                        |> List.map (List.append randomPoly)
+                        |> List.map (\x -> Phenotype x 0.0)
+                        |> List.map (\x -> Phenotype x.chromosome (Genetics.fitness x))
+
+                newGeneration =
+                    List.append breeded (List.singleton phenotypeFit)
+
+                ----------------------------------------------------------------
                 generation =
-                    List.append model.generation (List.singleton phenotypeFit)
+                    List.append model.generation newGeneration
                         |> List.sortBy (\x -> x.fitness)
                         |> List.take populationSize
             in
