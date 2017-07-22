@@ -87,7 +87,7 @@ renderPoint point =
         Svg.circle
             [ SvgA.cx cx
             , SvgA.cy cy
-            , SvgA.r "1"
+            , SvgA.r "3"
             , SvgA.fill "black"
             ]
             []
@@ -118,7 +118,7 @@ update msg model =
         NewPoint point ->
             let
                 test =
-                    pointInPolygon model.polygon point
+                    pointInPolygon point model.polygon
 
                 message =
                     if test then

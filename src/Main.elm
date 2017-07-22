@@ -12,11 +12,37 @@ import Svg
 import Svg.Attributes as SvgA
 import Geometry
 import Time exposing (Time, second, millisecond)
+import Genetics exposing (Phenotype)
+
+
+populationSize =
+    10
+
+
+chromosomeSize =
+    -- # polygons
+    20
+
+
+maxPolygonSize =
+    3
+
+
+scaleFrame =
+    { width = 32
+    , height = 40
+    }
+
+
+mainFrame =
+    { width = 100
+    , height = 100
+    }
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Time.every (500 * millisecond) Tick
+    Time.every (1 * millisecond) Tick
 
 
 main : Program Never Model Msg
@@ -30,18 +56,18 @@ main =
 
 
 type alias Model =
-    { shapes : List Geometry.Polygon
+    { generation : List Phenotype
+    , data : List (List Float)
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( { shapes = [] }, Cmd.none )
+    ( { generation = [], data = [] }, Cmd.none )
 
 
 type Msg
-    = GetPolygon
-    | NewData (List Float)
+    = NewData (List (List Float))
     | Tick Time
 
 
@@ -50,89 +76,85 @@ randomFloat32 =
     Random.list 32 (Random.float 0 1)
 
 
+randomFloatMatrix : Random.Generator (List (List Float))
+randomFloatMatrix =
+    -- 512 X 32
+    Random.list 512 randomFloat32
+
+
 fetchData : Array.Array Float -> Float -> Int -> Float
 fetchData arrayData default index =
     Maybe.withDefault default (Array.get index arrayData)
 
 
-maxPolygonSize =
-    6
+data32ToPolygon : List Float -> Geometry.Polygon
+data32ToPolygon data =
+    let
+        arrayData =
+            Array.fromList data
 
+        polygonSize =
+            (0 |> fetchData arrayData 0.0)
+                |> (*) 10
+                |> round
+                |> (+) 1
+                |> clamp 3 maxPolygonSize
 
-scaleFrame =
-    { width = 160
-    , height = 200
-    }
+        -- |> (+) 1
+        polygonPoints =
+            List.map2 Geometry.Point
+                (Array.slice 1 (polygonSize + 1) arrayData |> Array.toList)
+                (Array.slice (polygonSize + 1) (2 * polygonSize + 1) arrayData |> Array.toList)
 
+        col =
+            Color.rgba
+                ((2 * polygonSize + 2 |> fetchData arrayData 0.0) |> (*) 255 |> round)
+                ((2 * polygonSize + 3 |> fetchData arrayData 0.0) |> (*) 255 |> round)
+                ((2 * polygonSize + 4 |> fetchData arrayData 0.0) |> (*) 255 |> round)
+                ((2 * polygonSize + 5 |> fetchData arrayData 0.0))
 
-mainFrame =
-    { width = 425
-    , height = 550
-    }
+        framePositionFinalVector =
+            Geometry.Vector
+                ((2 * polygonSize + 6 |> fetchData arrayData 0.0) |> (*) mainFrame.width)
+                ((2 * polygonSize + 7 |> fetchData arrayData 0.0) |> (*) mainFrame.height)
+    in
+        Geometry.Polygon polygonPoints col (Geometry.isConvex polygonPoints)
+            |> Geometry.normalizePolygon scaleFrame.width scaleFrame.height
+            |> Geometry.movePolygon framePositionFinalVector
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Tick newTime ->
-            ( model, Random.generate NewData randomFloat32 )
+            ( model, Random.generate NewData randomFloatMatrix )
 
-        GetPolygon ->
-            ( model, Random.generate NewData randomFloat32 )
-
-        NewData data ->
+        NewData dataMat ->
             let
-                arrayData =
-                    Array.fromList data
+                phenotypeInit =
+                    Phenotype
+                        (dataMat
+                            |> List.take chromosomeSize
+                            |> List.map data32ToPolygon
+                        )
+                        0.0
 
-                polygonSize =
-                    (0 |> fetchData arrayData 0.0)
-                        |> (*) 10
-                        |> round
-                        |> (+) 1
-                        |> clamp 3 maxPolygonSize
+                phenotypeFit =
+                    Phenotype
+                        (phenotypeInit.chromosome)
+                        (Genetics.fitness phenotypeInit)
 
-                -- |> (+) 1
-                polygonPoints =
-                    List.map2 Geometry.Point
-                        (Array.slice 1 (polygonSize + 1) arrayData |> Array.toList)
-                        (Array.slice (polygonSize + 1) (2 * polygonSize + 1) arrayData |> Array.toList)
-
-                col =
-                    Color.rgba
-                        ((2 * polygonSize + 2 |> fetchData arrayData 0.0) |> (*) 255 |> round)
-                        ((2 * polygonSize + 3 |> fetchData arrayData 0.0) |> (*) 255 |> round)
-                        ((2 * polygonSize + 4 |> fetchData arrayData 0.0) |> (*) 255 |> round)
-                        ((2 * polygonSize + 5 |> fetchData arrayData 0.0))
-
-                framePositionFinalVector =
-                    Geometry.Vector
-                        ((2 * polygonSize + 6 |> fetchData arrayData 0.0) |> (*) mainFrame.width)
-                        ((2 * polygonSize + 7 |> fetchData arrayData 0.0) |> (*) mainFrame.height)
-
-                polygon =
-                    Geometry.Polygon polygonPoints col (Geometry.isConvex polygonPoints)
-                        |> Geometry.normalizePolygon scaleFrame.width scaleFrame.height
-                        |> Geometry.movePolygon framePositionFinalVector
+                generation =
+                    List.append model.generation (List.singleton phenotypeFit)
+                        |> List.sortBy (\x -> x.fitness)
+                        |> List.take populationSize
             in
                 ( { model
-                    | shapes = List.append model.shapes (List.singleton polygon)
+                    | generation = generation
+                    , data = dataMat
                   }
                 , Cmd.none
                 )
-
-
-
-{--
-                if polygon.isConvex then
-                    ( { model
-                        | shapes = List.append model.shapes (List.singleton polygon)
-                      }
-                    , Cmd.none
-                    )
-                else
-                    ( model, Cmd.none )
-                --}
 
 
 view : Model -> Html Msg
@@ -141,15 +163,6 @@ view model =
         [ Html.div
             [ HtmlA.class "mx-auto border gray m1 p1" ]
             [ renderModel model ]
-
-        -- [ text "Hi" ]
-        , Html.button
-            [ HtmlA.class "btn btn-primary m1"
-
-            -- , onClick GetShape
-            , onClick GetPolygon
-            ]
-            [ text "add triangle" ]
         ]
 
 
@@ -169,7 +182,7 @@ renderPolygon polygon =
                 |> String.join " "
 
         colorDict =
-            polygon.col
+            polygon.color
                 |> Color.toRgb
 
         colorJoin =
@@ -201,11 +214,15 @@ renderModel model =
         frameHeight =
             toString mainFrame.height
 
-        shapesSVG =
-            model.shapes |> List.map renderPolygon
+        polygonSVG =
+            model.generation
+                |> List.head
+                |> Maybe.withDefault (Phenotype [] 0.0)
+                |> .chromosome
+                |> List.map renderPolygon
     in
         Svg.svg
             [ SvgA.width frameWidth
             , SvgA.height frameHeight
             ]
-            shapesSVG
+            polygonSVG

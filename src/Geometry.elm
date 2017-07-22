@@ -19,7 +19,7 @@ type alias Vector =
 
 type alias Polygon =
     { points : List Point
-    , col : Color.Color
+    , color : Color.Color
     , isConvex : Bool
     }
 
@@ -59,8 +59,8 @@ toEdges points =
             pointsNext
 
 
-pointInPolygon : Polygon -> Point -> Bool
-pointInPolygon polygon point =
+pointInPolygon : Point -> Polygon -> Bool
+pointInPolygon point polygon =
     -- http://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
     let
         infinity =
