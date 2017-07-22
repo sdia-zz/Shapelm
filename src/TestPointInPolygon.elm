@@ -21,12 +21,33 @@ type alias Model =
     }
 
 
+
+-- trianglePolygon =
+--     Polygon
+--         [ Point 250 50
+--         , Point 10 125
+--         , Point 50 475
+--         , Point 375 375
+--         ]
+--         (Color.rgba 155 133 256 0.2)
+--         True
+
+
 trianglePolygon =
     Polygon
-        [ Point 250 50
-        , Point 10 125
-        , Point 50 475
-        , Point 375 375
+        [ Point 0 250
+        , Point 201 40
+        , Point 201 200
+        , Point 300 200
+        , Point 300 40
+        , Point 450 40
+        , Point 450 450
+        , Point 300 450
+        , Point 300 300
+        , Point 201 300
+        , Point 201 450
+
+        --    , Point 310 40
         ]
         (Color.rgba 155 133 256 0.2)
         True
@@ -66,8 +87,8 @@ renderPoint point =
         Svg.circle
             [ SvgA.cx cx
             , SvgA.cy cy
-            , SvgA.r "5"
-            , SvgA.fill "blue"
+            , SvgA.r "1"
+            , SvgA.fill "black"
             ]
             []
 
